@@ -13,26 +13,32 @@ function eh:UpdateUnprotectedVisibility()
   end
 end
 
-function eh:SetDefaults()
-  MainMenuBarArtFrame:Hide()
-  MicroButtonAndBagsBar:Hide()
-  -- MultiBarLeft:Hide() called from here may not actually hide it; most likely
-  -- something else shows it afterward. and because Blizzard, MultiBarLeft is
-  -- actually not contained in VerticalMultiBarsContainer. So just hook
-  -- MultiActionBar_Update to set visibility on both.
-  hooksecurefunc("MultiActionBar_Update", function()
-    local show = MainMenuBarArtFrame:IsShown()
-    MultiBarLeft:SetShown(show)
-    VerticalMultiBarsContainer:SetShown(show)
-  end)
-end
-
 function eh:InitAddon(ev, addon)
   if not (ev == "ADDON_LOADED" and addon == "ToggleBars") then return end
-  eh:SetDefaults()
   -- MainMenuBarArtFrame is protected, so we have to use
   -- SecureHandlerClickTemplate to show/hide it
   eh.togglebutton = CreateFrame("BUTTON", "ToggleBarsButton", StatusTrackingBarManager, "SecureHandlerClickTemplate")
+  --- Hide frames by default; unprotected ones we can just :Hide() here
+  MicroButtonAndBagsBar:Hide()
+  -- for the protected frames we need to be more creative to not cause taint.
+  -- set up a child for MultiBarLeft with an _onshow handler that always hides
+  -- the protected frames we want to hide, *but* remove that handler when the
+  -- toggle button is clicked.
+  -- the reason we use MultiBarLeft for this is that it gets shown multiple
+  -- times on login, even after PLAYER_ENTERING_WORLD.
+  eh.multihider = CreateFrame("Frame", "ToggleBarsMultiHider", MultiBarLeft, "SecureHandlerShowHideTemplate")
+  eh.multihider:SetFrameRef("main", MainMenuBarArtFrame)
+  eh.multihider:SetFrameRef("right", VerticalMultiBarsContainer)
+  eh.multihider:SetFrameRef("left", MultiBarLeft)
+  eh.multihider:SetAttribute("_onshow", [[
+  for _, ref in ipairs(newtable("main", "right", "left")) do
+    local f = self:GetFrameRef(ref)
+    f:Hide()
+  end
+  ]])
+  function eh.togglebutton:removehider()
+    eh.multihider:SetAttribute("_onshow", nil)
+  end
   eh.togglebutton.texture = eh.togglebutton:CreateTexture()
   eh.togglebutton.texture:SetAllPoints()
   eh.togglebutton.texture:SetColorTexture(0, 0, 0, 0.4)
@@ -47,6 +53,7 @@ function eh:InitAddon(ev, addon)
   local toggleframes = newtable("main", "left", "right")
   local main = self:GetFrameRef("main")
   local show = not main:IsShown()
+  owner:CallMethod("removehider")
   for _, ref in ipairs(toggleframes) do
     local f = self:GetFrameRef(ref)
     if show then f:Show() else f:Hide() end
