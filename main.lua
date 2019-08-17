@@ -45,9 +45,11 @@ function eh:InitAddon(ev, addon)
   eh.togglebutton.unprivfunc = eh.UpdateUnprotectedVisibility
   eh.togglebutton:SetAttribute("_onclick", [[
   local toggleframes = newtable("main", "left", "right")
+  local main = self:GetFrameRef("main")
+  local show = not main:IsShown()
   for _, ref in ipairs(toggleframes) do
     local f = self:GetFrameRef(ref)
-    if f:IsShown() then f:Hide() else f:Show() end
+    if show then f:Show() else f:Hide() end
   end
   owner:CallMethod("unprivfunc")
   ]])
