@@ -1,5 +1,5 @@
 -- vim: sw=2 sts=2 et
-local eh = CreateFrame("Frame", "TBars", UIParent)
+local eh = CreateFrame("Frame", "ToggleBars", UIParent)
 eh:RegisterEvent("ADDON_LOADED")
 
 function eh:UpdateUnprotectedVisibility()
@@ -8,56 +8,50 @@ function eh:UpdateUnprotectedVisibility()
     if f:IsProtected() then
       print("ToggleBars error: " .. f:GetName() .. " is protected")
     else
-      f:SetShown(MainMenuBarArtFrame:IsShown())
+      f:SetShown(self.hider:GetAttribute("show"))
     end
   end
 end
 
 function eh:InitAddon(ev, addon)
   if not (ev == "ADDON_LOADED" and addon == "ToggleBars") then return end
-  -- MainMenuBarArtFrame is protected, so we have to use
-  -- SecureHandlerClickTemplate to show/hide it
-  eh.togglebutton = CreateFrame("BUTTON", "ToggleBarsButton", StatusTrackingBarManager, "SecureHandlerClickTemplate")
-  --- Hide frames by default; unprotected ones we can just :Hide() here
+  -- Hide frames by default; unprotected ones we can just :Hide() here
   MicroButtonAndBagsBar:Hide()
   -- for the protected frames we need to be more creative to not cause taint.
-  -- set up a child for MultiBarLeft with an _onshow handler that always hides
-  -- the protected frames we want to hide, *but* remove that handler when the
-  -- toggle button is clicked.
-  -- the reason we use MultiBarLeft for this is that it gets shown multiple
-  -- times on login, even after PLAYER_ENTERING_WORLD.
-  eh.multihider = CreateFrame("Frame", "ToggleBarsMultiHider", MultiBarLeft, "SecureHandlerShowHideTemplate")
-  eh.multihider:SetFrameRef("main", MainMenuBarArtFrame)
-  eh.multihider:SetFrameRef("right", VerticalMultiBarsContainer)
-  eh.multihider:SetFrameRef("left", MultiBarLeft)
-  eh.multihider:SetAttribute("_onshow", [[
+  -- set up a child for MultiBarLeft with an _onshow handler that hides the
+  -- protected frames if necessary.
+  -- the reason we use MultiBarLeft for this is that it gets shown separately
+  -- from other bars, eg. multiple times on login, even after
+  -- PLAYER_ENTERING_WORLD.
+  eh.hider = CreateFrame("Frame", "ToggleBarsHider", MultiBarLeft, "SecureHandlerShowHideTemplate")
+  eh.hider:SetAttribute("show", false)
+  eh.hider:SetFrameRef("main", MainMenuBarArtFrame)
+  eh.hider:SetFrameRef("right", VerticalMultiBarsContainer)
+  eh.hider:SetFrameRef("left", MultiBarLeft)
+  eh.hider:SetAttribute("_onshow", [[
+  local show = self:GetAttribute("show")
   for _, ref in ipairs(newtable("main", "right", "left")) do
-    local f = self:GetFrameRef(ref)
-    f:Hide()
-  end
-  ]])
-  function eh.togglebutton:removehider()
-    eh.multihider:SetAttribute("_onshow", nil)
-  end
-  eh.togglebutton.texture = eh.togglebutton:CreateTexture()
-  eh.togglebutton.texture:SetAllPoints()
-  eh.togglebutton.texture:SetColorTexture(0, 0, 0, 0.4)
-  eh.togglebutton:SetWidth(16)
-  eh.togglebutton:SetHeight(16)
-  eh.togglebutton:SetPoint("TOPLEFT", MainMenuBar, "BOTTOMLEFT", 0, 0)
-  eh.togglebutton:SetFrameRef("main", MainMenuBarArtFrame)
-  eh.togglebutton:SetFrameRef("right", VerticalMultiBarsContainer)
-  eh.togglebutton:SetFrameRef("left", MultiBarLeft)
-  eh.togglebutton.unprivfunc = eh.UpdateUnprotectedVisibility
-  eh.togglebutton:SetAttribute("_onclick", [[
-  local toggleframes = newtable("main", "left", "right")
-  local main = self:GetFrameRef("main")
-  local show = not main:IsShown()
-  owner:CallMethod("removehider")
-  for _, ref in ipairs(toggleframes) do
     local f = self:GetFrameRef(ref)
     if show then f:Show() else f:Hide() end
   end
+  ]])
+  eh.button = CreateFrame("Button", "ToggleBarsButton", StatusTrackingBarManager, "SecureHandlerClickTemplate")
+  eh.button.texture = eh.button:CreateTexture()
+  eh.button.texture:SetAllPoints()
+  eh.button.texture:SetColorTexture(0, 0, 0, 0.4)
+  eh.button:SetWidth(16)
+  eh.button:SetHeight(16)
+  eh.button:SetPoint("TOPLEFT", MainMenuBar, "BOTTOMLEFT", 0, 0)
+  eh.button:SetFrameRef("hider", eh.hider)
+  eh.button.hider = eh.hider -- needed in UpdateUnprotectedVisibility
+  eh.button.unprivfunc = eh.UpdateUnprotectedVisibility
+  eh.button:SetAttribute("_onclick", [[
+  local hider = self:GetFrameRef("hider")
+  local show = not hider:GetAttribute("show")
+  hider:SetAttribute("show", show)
+  -- trigger _onshow to update frames
+  hider:GetParent():Hide()
+  hider:GetParent():Show()
   owner:CallMethod("unprivfunc")
   ]])
 end
