@@ -36,6 +36,7 @@ function eh:InitAddon(ev, addon)
   end
   ]])
   eh.button = CreateFrame("Button", "ToggleBarsButton", StatusTrackingBarManager, "SecureHandlerClickTemplate")
+  eh.button:SetFrameStrata("HIGH")
   eh.button.texture = eh.button:CreateTexture()
   eh.button.texture:SetAllPoints()
   eh.button.texture:SetColorTexture(0, 0, 0, 0.4)
