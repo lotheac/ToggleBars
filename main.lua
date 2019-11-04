@@ -35,14 +35,14 @@ function eh:InitAddon(ev, addon)
     if show then f:Show() else f:Hide() end
   end
   ]])
-  eh.button = CreateFrame("Button", "ToggleBarsButton", StatusTrackingBarManager, "SecureHandlerClickTemplate")
+  eh.button = CreateFrame("Button", "ToggleBarsButton", UIParent, "SecureHandlerClickTemplate")
   eh.button:SetFrameStrata("HIGH")
   eh.button.texture = eh.button:CreateTexture()
   eh.button.texture:SetAllPoints()
   eh.button.texture:SetColorTexture(0, 0, 0, 0.4)
   eh.button:SetWidth(16)
   eh.button:SetHeight(16)
-  eh.button:SetPoint("TOPLEFT", MainMenuBar, "BOTTOMLEFT", 0, 0)
+  eh.button:SetPoint("TOPLEFT", WorldFrame, "TOPLEFT", 0, 0)
   eh.button:SetFrameRef("hider", eh.hider)
   eh.button.hider = eh.hider -- needed in UpdateUnprotectedVisibility
   eh.button.unprivfunc = eh.UpdateUnprotectedVisibility
